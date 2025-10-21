@@ -1,25 +1,22 @@
-name: Deploy Go Documentation
+name: Deploy Documentation
 
 on:
   push:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
+  workflow_dispatch:  # Allow manual triggers
 
 permissions:
   contents: read
   pages: write
   id-token: write
 
-concurrency:
-  group: "pages"
-  cancel-in-progress: false
-
 jobs:
   generate-docs:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Setup Go
@@ -27,24 +24,112 @@ jobs:
         with:
           go-version: '1.21'
 
-      - name: Build documentation
-        run: |
-          go mod tidy
-          go install golang.org/x/pkgsite/cmd/pkgsite@latest
-          mkdir -p ./site
-          # Generate static documentation
-          pkgsite -static ./site . &
-          sleep 10
-          wget -r -np -N -E -p -k http://localhost:8080/ || true
-          pkill pkgsite
+      - name: Install pkgsite
+        run: go install golang.org/x/pkgsite/cmd/pkgsite@latest
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
+      - name: Generate static documentation
+        run: |
+          # Create documentation directory
+          mkdir -p public
+          
+          # Start pkgsite in background to generate static files
+          pkgsite -static ./public -http=localhost:8080 .
+          
+          # Wait a bit for files to generate, then create index
+          sleep 10
+          
+          # Create a nice landing page
+          cat > public/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>Project Documentation</title>
+              <style>
+                  body {
+                      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                      max-width: 800px;
+                      margin: 0 auto;
+                      padding: 40px 20px;
+                      line-height: 1.6;
+                      color: #24292e;
+                  }
+                  header {
+                      text-align: center;
+                      margin-bottom: 40px;
+                      border-bottom: 1px solid #e1e4e8;
+                      padding-bottom: 20px;
+                  }
+                  h1 {
+                      color: #0366d6;
+                  }
+                  .packages {
+                      background: #f6f8fa;
+                      border-radius: 6px;
+                      padding: 20px;
+                      margin: 20px 0;
+                  }
+                  .package-link {
+                      display: block;
+                      padding: 8px 12px;
+                      margin: 5px 0;
+                      background: white;
+                      border: 1px solid #e1e4e8;
+                      border-radius: 4px;
+                      text-decoration: none;
+                      color: #0366d6;
+                  }
+                  .package-link:hover {
+                      background: #0366d6;
+                      color: white;
+                  }
+                  .info {
+                      background: #d1ecf1;
+                      border: 1px solid #bee5eb;
+                      border-radius: 4px;
+                      padding: 15px;
+                      margin: 20px 0;
+                  }
+              </style>
+          </head>
+          <body>
+              <header>
+                  <h1>📚 Project Documentation</h1>
+                  <p>Automatically generated from Go source code</p>
+              </header>
+              
+              <div class="info">
+                  <strong>📝 Note:</strong> This documentation is automatically updated on every commit to main branch.
+              </div>
+              
+              <h2>📦 Available Packages</h2>
+              <div class="packages">
+                  <a href="/cmd" class="package-link">📁 cmd - Main application package</a>
+                  <a href="/internal/model" class="package-link">📁 internal/model - Data models and structures</a>
+              </div>
+              
+              <h2>🔗 External Links</h2>
+              <ul>
+                  <li><a href="https://pkg.go.dev/github.com/${{ github.repository }}">View on pkg.go.dev</a></li>
+                  <li><a href="https://github.com/${{ github.repository }}">GitHub Repository</a></li>
+              </ul>
+              
+              <footer style="margin-top: 40px; text-align: center; color: #6a737d;">
+                  <p>Last updated: <span id="date"></span></p>
+              </footer>
+              
+              <script>
+                  document.getElementById('date').textContent = new Date().toLocaleString();
+              </script>
+          </body>
+          </html>
+          EOF
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./localhost:8080
+          path: ./public
 
   deploy:
     environment:
@@ -55,4 +140,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v3
