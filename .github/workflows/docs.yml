@@ -33,7 +33,7 @@ jobs:
           go install golang.org/x/pkgsite/cmd/pkgsite@latest
           mkdir -p ./site
           # Generate static documentation
-          pkgsite -static ./site -quiet . &
+          pkgsite -static ./site . &
           sleep 10
           wget -r -np -N -E -p -k http://localhost:8080/ || true
           pkill pkgsite
