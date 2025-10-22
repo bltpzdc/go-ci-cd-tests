@@ -1,4 +1,20 @@
-// main package of the app
+// Package main представляет собой простое REST API для работы с текстовыми записями
+// @title Simple Text API
+// @version 1.0
+// @description REST API для сохранения и получения текстовых данных с использованием PostgreSQL
+// @termsOfService http://swagger.io/terms/
+
+// @contact.name API Support
+// @contact.url http://www.example.com/support
+// @contact.email support@example.com
+
+// @license.name MIT
+// @license.url https://opensource.org/licenses/MIT
+
+// @host localhost:8080
+// @BasePath /
+// @query.collection.format multi
+
 package main
 
 import (
@@ -10,12 +26,16 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	_ "github.com/lib/pq" 
+	_ "github.com/lib/pq"
+
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
+// TextEntry представляет модель текстовой записи
 type TextEntry struct {
-	ID   int    `json:"id"`
-	Text string `json:"text" binding:"required"`
+	ID   int    `json:"id" example:"1"`                                  // Уникальный идентификатор записи
+	Text string `json:"text" binding:"required" example:"Пример текста"` // Текст записи (обязательное поле)
 }
 
 var db *sql.DB
@@ -29,6 +49,11 @@ func main() {
 
 	router := gin.Default()
 
+	url := ginSwagger.URL("/docs/swagger.json") // указываем правильный путь
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler, url))
+
+	router.Static("/docs", "./docs")
+
 	router.POST("/text", postText(db))
 	router.GET("/text/:id", getText(db))
 
@@ -38,6 +63,7 @@ func main() {
 	}
 }
 
+// setupDatabase инициализирует подключение к PostgreSQL и создает таблицу если необходимо
 func setupDatabase() error {
 	connStr := os.Getenv("DATABASE_URL")
 	if connStr == "" {
@@ -72,6 +98,17 @@ func setupDatabase() error {
 	return nil
 }
 
+// postText создает новую текстовую запись
+// @Summary Создать текстовую запись
+// @Description Сохраняет новый текст в базу данных
+// @Tags text
+// @Accept json
+// @Produce json
+// @Param text body TextEntry true "Текст для сохранения"
+// @Success 201 {object} map[string]interface{} "Текст успешно сохранен"
+// @Failure 400 {object} map[string]string "Неверный формат запроса"
+// @Failure 500 {object} map[string]string "Ошибка сервера при сохранении"
+// @Router /text [post]
 func postText(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var newEntry TextEntry
@@ -94,6 +131,17 @@ func postText(db *sql.DB) gin.HandlerFunc {
 	}
 }
 
+// getText получает текстовую запись по ID
+// @Summary Получить текст по ID
+// @Description Возвращает текстовую запись по указанному идентификатору
+// @Tags text
+// @Produce json
+// @Param id path int true "ID текстовой записи"
+// @Success 200 {object} TextEntry "Текстовая запись"
+// @Failure 400 {object} map[string]string "Неверный формат ID"
+// @Failure 404 {object} map[string]string "Запись не найдена"
+// @Failure 500 {object} map[string]string "Ошибка сервера при получении"
+// @Router /text/{id} [get]
 func getText(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		idStr := c.Param("id")

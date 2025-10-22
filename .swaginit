@@ -1,0 +1,11 @@
+{
+    "searchDir": "./",
+    "excludes": "test_,vendor",
+    "mainApiFile": "cmd/main.go",
+    "output": "docs",
+    "parseVendor": false,
+    "parseDependency": false,
+    "markdownFiles": "",
+    "generatedTime": true,
+    "parseInternal": true
+}
