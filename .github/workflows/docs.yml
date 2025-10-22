@@ -6,7 +6,7 @@ on:
     paths: 
       - '**.go'
       - 'docs/**'
-      - '.github/workflows/deploy-docs.yml'
+      - '.github/workflows/docs.yml'
   workflow_dispatch:
 
 permissions:
